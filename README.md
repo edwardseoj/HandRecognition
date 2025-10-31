@@ -2,7 +2,9 @@
 Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, and tensorflow  
 
 ## Setup
-- Open terminal and activate myenv with
+- Open terminal and create virtual environment
+    - `python -m venv desired_name_of_virtual_env`
+- activate myenv with
     - `source myenv/bin/activate` for linux/mac
     - `myenv\Scripts\activate` for windows (may need to make one yourself)
 - import mediapipe, opencv, and tensorflow
