@@ -16,3 +16,6 @@ Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, 
 - see real-time gesture recognition with **main.py**
 - (Optional) reset dataset with **reset_gestures.py**
 
+## Disclaimer
+- Made with ChatGPT
+- On first use, run collect_data.py and train_model.py before running main.py
