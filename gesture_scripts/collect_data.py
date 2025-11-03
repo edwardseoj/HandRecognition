@@ -1,3 +1,4 @@
+# collect_data.py
 import sys, os, time, csv, cv2, mediapipe as mp
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))

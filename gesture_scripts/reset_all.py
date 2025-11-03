@@ -1,3 +1,4 @@
+# reset_all.py
 import os, csv, shutil, datetime, numpy as np, sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))

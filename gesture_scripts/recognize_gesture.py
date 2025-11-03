@@ -1,3 +1,4 @@
+# recognize_gesture.py
 import os, cv2, mediapipe as mp, numpy as np, tensorflow as tf
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
