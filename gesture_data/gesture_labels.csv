@@ -1,6 +1,7 @@
 gesture_name
-volume_up
-volume_down
-stop
+play
 next
 previous
+volume_up
+volume_down
+pause

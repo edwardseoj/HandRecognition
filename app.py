@@ -1,3 +1,4 @@
+# app.py
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout,
     QProgressBar, QLabel, QMessageBox, QLineEdit
