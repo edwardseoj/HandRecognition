@@ -16,8 +16,8 @@ cap = cv2.VideoCapture(0)
 
 # 🎵 Gesture → Spotify command mapping
 GESTURE_COMMANDS = {
-    "play": ["playerctl", "play-pause"],
-    "pause": ["playerctl", "play-pause"],
+    "play": ["playerctl", "play"],
+    "pause": ["playerctl", "pause"],
     "next": ["playerctl", "next"],
     "previous": ["playerctl", "previous"],
     "volume_up": ["playerctl", "volume", "0.1+"],
