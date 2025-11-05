@@ -1,17 +1,17 @@
-# app.py
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout,
-    QProgressBar, QLabel, QMessageBox, QLineEdit
+    QProgressBar, QLabel, QMessageBox, QLineEdit, QHBoxLayout
 )
-from PyQt5.QtCore import QProcess, Qt, QTimer
+from PyQt5.QtCore import QProcess, Qt, QTimer, QPropertyAnimation, QRect, QEasingCurve
 import sys, os
 
 
 class GestureUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Hand Gesture Recognition UI")
+        self.setWindowTitle("CALIRA - Hand Gesture Recognition")
         self.resize(400, 300)
+
 
         # QProcess handles background scripts (training, collection, etc.)
         self.process = QProcess()
@@ -31,10 +31,28 @@ class GestureUI(QWidget):
     def show_main_screen(self):
         self.clear_layout(hide_only=True)
 
-        title = QLabel("🖐️ Hand Gesture Recognition")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 15px;")
-        self.layout.addWidget(title)
+        # ✅ Create animated CALIRA title with bouncing letters
+        title_layout = QHBoxLayout()
+        self.title_letters = []
+
+        for char in "CALIRA":
+            letter = QLabel(char)
+            letter.setAlignment(Qt.AlignCenter)
+            letter.setStyleSheet("""
+                font-size: 36px;
+                font-weight: bold;
+                color: #4A90E2;
+                background-color: white;
+                border: 2px solid #4A90E2;
+                border-radius: 8px;
+                padding: 10px;
+            """)
+
+            title_layout.addWidget(letter)
+            self.title_letters.append(letter)
+
+        self.layout.addLayout(title_layout)
+        QTimer.singleShot(200, self.animate_title)
 
         self.btn_collect = QPushButton("📸 Collect Data")
         self.btn_train = QPushButton("🧠 Train Model")
@@ -46,17 +64,51 @@ class GestureUI(QWidget):
         self.btn_recognize.clicked.connect(lambda: self.run_script("recognize_gesture.py", detached=True))
         self.btn_reset.clicked.connect(self.confirm_reset)
 
+        button_style = """
+            QPushButton {
+                font-size: 16px;
+                padding: 10px;
+                border-radius: 8px;
+                background-color: #4A90E2;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #357ABD;
+            }
+        """
+
         for btn in [self.btn_collect, self.btn_train, self.btn_recognize, self.btn_reset]:
+            btn.setStyleSheet(button_style)
             self.layout.addWidget(btn)
 
         self.status_label = QLabel("Ready.")
         self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("font-size: 14px; color: #333; margin-top: 10px;")
         self.layout.addWidget(self.status_label)
 
         self.widgets = [
-            title, self.btn_collect, self.btn_train,
+            *self.title_letters, self.btn_collect, self.btn_train,
             self.btn_recognize, self.btn_reset, self.status_label
         ]
+
+    # ==================================================
+    # TITLE ANIMATION
+    # ==================================================
+    def animate_title(self):
+        def start_animation():
+            for i, letter in enumerate(self.title_letters):
+                rect = letter.geometry()
+                if rect.isValid():
+                    anim = QPropertyAnimation(letter, b"geometry", self)
+                    anim.setDuration(3800)
+                    anim.setStartValue(rect)
+                    anim.setEndValue(QRect(rect.x(), rect.y() - 15, rect.width(), rect.height()))
+                    anim.setEasingCurve(QEasingCurve.OutBounce)
+                    anim.setLoopCount(-1)
+                    QTimer.singleShot(i * 400, anim.start)
+                    setattr(self, f"anim_{i}", anim)
+
+        QTimer.singleShot(300, start_animation)
 
     # ==================================================
     # COLLECT DATA
@@ -209,7 +261,6 @@ class GestureUI(QWidget):
             except RuntimeError:
                 pass
         self.widgets = []
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
