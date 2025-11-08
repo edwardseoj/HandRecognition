@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QProgressBar, QLabel, QMessageBox, QLineEdit, QHBoxLayout
 )
 from PyQt5.QtCore import QProcess, Qt, QTimer, QPropertyAnimation, QRect, QEasingCurve
+from PyQt5.QtGui import QMovie
 import sys, os
 
 
@@ -11,7 +12,16 @@ class GestureUI(QWidget):
         super().__init__()
         self.setWindowTitle("CALIRA - Hand Gesture Recognition")
         self.resize(400, 300)
+        self.setStyleSheet("background: transparent;")
 
+        self.background_label = QLabel(self)
+        self.background_label.setGeometry(0, 0, self.width(), self.height())
+        self.background_label.lower()  # Send to back
+        
+        self.movie = QMovie("assets/background.gif")  # Replace with your actual path
+        self.movie.setScaledSize(self.size())
+        self.background_label.setMovie(self.movie)
+        self.movie.start()
 
         # QProcess handles background scripts (training, collection, etc.)
         self.process = QProcess()
@@ -24,6 +34,11 @@ class GestureUI(QWidget):
         self.widgets = []
 
         self.show_main_screen()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.background_label.setGeometry(0, 0, self.width(), self.height())
+        self.movie.setScaledSize(self.size())
 
     # ==================================================
     # MAIN SCREEN
