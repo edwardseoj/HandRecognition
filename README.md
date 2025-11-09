@@ -13,7 +13,7 @@ Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, 
 ## How to use
 - collect data with **collect_data.py**
 - train by running **train_model.py**
-- see real-time gesture recognition with **main.py**
+
 - (Optional) reset dataset with **reset_gestures.py**
 
 ## Disclaimer
