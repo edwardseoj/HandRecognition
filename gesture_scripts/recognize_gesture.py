@@ -1,5 +1,9 @@
 import os, cv2, mediapipe as mp, numpy as np, tensorflow as tf, subprocess
 
+from pynput.keyboard import Controller, Key
+
+keyboard_ctrl = Controller()
+
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "models", "gesture_model.h5")
 LABEL_PATH = os.path.join(BASE_DIR, "models", "gesture_labels.npy")
@@ -16,24 +20,29 @@ cap = cv2.VideoCapture(0)
 
 # 🎵 Gesture → Spotify command mapping
 GESTURE_COMMANDS = {
-    "play": ["playerctl", "play"],
-    "pause": ["playerctl", "pause"],
-    "next": ["playerctl", "next"],
-    "previous": ["playerctl", "previous"],
-    "volume_up": ["playerctl", "volume", "0.1+"],
-    "volume_down": ["playerctl", "volume", "0.1-"],
+    "play": Key.media_play_pause,
+    "pause": Key.media_play_pause,
+    "next": Key.media_next,
+    "previous": Key.media_previous,
+    "volume_up": Key.media_volume_up,
+    "volume_down": Key.media_volume_down,
 }
+
 
 last_action = None
 cooldown_frames = 30  # frames before allowing new command
 frame_counter = 0
 
 def run_spotify_command(gesture):
-    """Run a mapped Spotify command using playerctl."""
-    if gesture in GESTURE_COMMANDS:
-        cmd = GESTURE_COMMANDS[gesture]
-        subprocess.run(cmd)
-        print(f"🎶 Executed command for gesture: {gesture}")
+    """Trigger the appropriate system media key for a recognized gesture."""
+    key = GESTURE_COMMANDS.get(gesture)
+    if key:
+        try:
+            keyboard_ctrl.press(key)
+            keyboard_ctrl.release(key)
+            print(f"🎶 Executed command for gesture: {gesture}")
+        except Exception as e:
+            print(f"⚠️ Error executing gesture '{gesture}': {e}")
     else:
         print(f"⚠️ No Spotify command mapped for gesture: {gesture}")
 
