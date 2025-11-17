@@ -197,7 +197,7 @@ class GestureUI(QWidget):
                     padding: 10px 20px;
                 }
                 QPushButton:hover {
-                    background-color: blue;
+                    background-color: #324AB2;
                     color: white;
                     border-color: white;
                 }
