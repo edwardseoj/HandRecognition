@@ -4,6 +4,7 @@ import os
 import csv
 import cv2
 import mediapipe as mp
+from tqdm import tqdm  # progress bar
 
 # -------------------------------
 # CONFIGURATION
@@ -31,16 +32,17 @@ mp_drawing = mp.solutions.drawing_utils
 # -------------------------------
 # STEP 3: Process images
 # -------------------------------
-with mp_hands.Hands(static_image_mode=True, max_num_hands=1) as hands:
-    for label in os.listdir(DATA_DIR):
+labels = [d for d in os.listdir(DATA_DIR) if os.path.isdir(os.path.join(DATA_DIR, d))]
+total_labels = len(labels)
+
+with mp_hands.Hands(static_image_mode=True, max_num_hands=1) as hands, tqdm(total=total_labels, desc="Overall Progress", unit="label") as overall_bar:
+    for label in labels:
         label_path = os.path.join(DATA_DIR, label)
-        if not os.path.isdir(label_path):
-            continue
-
-        print(f"📂 Processing label: {label}")
-
+        img_files = os.listdir(label_path)
         count = 0
-        for img_file in os.listdir(label_path):
+
+        # Progress bar for images in this label
+        for img_file in tqdm(img_files, desc=f"Processing '{label}'", unit="img", leave=False):
             if TARGET_SAMPLES_PER_LABEL and count >= TARGET_SAMPLES_PER_LABEL:
                 break
 
@@ -59,6 +61,7 @@ with mp_hands.Hands(static_image_mode=True, max_num_hands=1) as hands:
                         csv.writer(f).writerow(row)
                     count += 1
 
-        print(f"✅ Processed {count} images for label: {label}")
+        tqdm.write(f"✅ Finished {count} images for label: {label}")
+        overall_bar.update(1)
 
-print("🎉 All images processed! CSV ready for training.")
+print("\n🎉 All images processed! CSV ready for training.")

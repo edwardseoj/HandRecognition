@@ -1,3 +1,4 @@
+# recognize_gesture.py
 import os
 import cv2
 import mediapipe as mp
@@ -44,7 +45,9 @@ def run_spotify_command(gesture):
             "play":        ["playerctl", "play"],
             "pause":       ["playerctl", "pause"],
             "next":        ["playerctl", "next"],
+            "next2":        ["playerctl", "next"],
             "previous":    ["playerctl", "previous"],
+            "previous2":    ["playerctl", "previous"],
             "volume_up":   ["playerctl", "volume", "0.1+"],
             "volume_down": ["playerctl", "volume", "0.1-"],
         }
