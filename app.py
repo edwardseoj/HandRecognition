@@ -4,14 +4,84 @@ from PyQt5.QtWidgets import (
     QProgressBar, QLabel, QMessageBox, QLineEdit, QHBoxLayout,
     QGraphicsDropShadowEffect
 )
-from PyQt5.QtCore import QProcess, Qt, QTimer, QPropertyAnimation, QRect, QEasingCurve, QUrl
-from PyQt5.QtGui import QMovie, QFont
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import QProcess, Qt, QTimer, QPropertyAnimation, QRect, QEasingCurve
+from PyQt5.QtGui import QMovie, QFont, QIcon
+
 
 # ==================================================
-# INTRO SCREEN
+# CUSTOM APP BAR (ONLY FOR MAIN UI)
+# ==================================================
+class AppBar(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+
+        self.setFixedHeight(45)
+        self.setStyleSheet("""
+            background-color: rgba(0, 0, 0, 140);
+            border-bottom: 2px solid cyan;
+        """)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(10, 0, 10, 0)
+
+        title = QLabel("CALIRA - Gesture Recognition")
+        title.setStyleSheet("color: cyan; font-size: 18px;")
+        layout.addWidget(title)
+        layout.addStretch()
+
+        btn_min = QPushButton("—")
+        btn_min.setFixedSize(40, 28)
+        btn_min.setStyleSheet(self.btn_style())
+        btn_min.clicked.connect(self.minimize)
+
+        btn_close = QPushButton("✕")
+        btn_close.setFixedSize(40, 28)
+        btn_close.setStyleSheet(self.btn_style())
+        btn_close.clicked.connect(self.close_app)
+
+        layout.addWidget(btn_min)
+        layout.addWidget(btn_close)
+
+        self.setLayout(layout)
+        self.drag_pos = None
+
+    def btn_style(self):
+        return """
+            QPushButton {
+                color: white;
+                font-size: 18px;
+                border: none;
+                background: transparent;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 0, 0, 160);
+            }
+        """
+
+    def minimize(self):
+        self.parent.showMinimized()
+
+    def close_app(self):
+        self.parent.close()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.drag_pos = event.globalPos()
+
+    def mouseMoveEvent(self, event):
+        if self.drag_pos:
+            diff = event.globalPos() - self.drag_pos
+            self.parent.move(self.parent.x() + diff.x(),
+                             self.parent.y() + diff.y())
+            self.drag_pos = event.globalPos()
+
+    def mouseReleaseEvent(self, event):
+        self.drag_pos = None
+
+
+# ==================================================
+# INTRO SCREEN (UNCHANGED)
 # ==================================================
 class IntroScreen(QWidget):
     def __init__(self):
@@ -85,15 +155,19 @@ class IntroScreen(QWidget):
         center_x = (screen_rect.width() - logo_rect.width()) // 2
         center_y = (screen_rect.height() - logo_rect.height()) // 2
 
-        start_rect = QRect(center_x + logo_rect.width() // 2, center_y + logo_rect.height() // 2, 0, 0)
-        end_rect = QRect(center_x, center_y, logo_rect.width(), logo_rect.height())
+        start_rect = QRect(center_x + logo_rect.width() // 2,
+                           center_y + logo_rect.height() // 2, 0, 0)
+        end_rect = QRect(center_x, center_y,
+                         logo_rect.width(), logo_rect.height())
 
         self.logo.setGeometry(start_rect)
         self.scale_anim.setStartValue(start_rect)
         self.scale_anim.setEndValue(end_rect)
         self.scale_anim.start()
 
-        self.fade_in.finished.connect(lambda: QTimer.singleShot(1500, lambda: self.fade_out_and_launch()))
+        self.fade_in.finished.connect(
+            lambda: QTimer.singleShot(1500, self.fade_out_and_launch)
+        )
         self.fade_in.start()
 
     def fade_out_and_launch(self):
@@ -102,16 +176,17 @@ class IntroScreen(QWidget):
 
 
 # ==================================================
-# MAIN UI
+# MAIN UI + APP BAR
 # ==================================================
 class GestureUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowIcon(QIcon("assets/calira_icon.png"))
-        self.setWindowTitle("CALIRA - Hand Gesture Recognition")
+        self.setWindowFlags(Qt.FramelessWindowHint)
         self.resize(400, 300)
         self.setStyleSheet("background: transparent;")
 
+        # Background GIF
         self.background_label = QLabel(self)
         self.background_label.setGeometry(0, 0, self.width(), self.height())
         self.background_label.lower()
@@ -121,28 +196,45 @@ class GestureUI(QWidget):
         self.background_label.setMovie(self.movie)
         self.movie.start()
 
+        # QProcess
         self.process = QProcess()
         self.process.readyReadStandardOutput.connect(self.read_output)
         self.process.finished.connect(self.on_finished)
 
+        # Main layout
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
         self.setLayout(self.layout)
-        self.widgets = []
 
+        # AppBar
+        self.appbar = AppBar(self)
+        self.layout.addWidget(self.appbar)
+
+        self.widgets = []
         self.show_main_screen()
 
+    # -------------------
+    # Events
+    # -------------------
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.background_label.setGeometry(0, 0, self.width(), self.height())
         self.movie.setScaledSize(self.size())
-        if hasattr(self, "title_letters"):
-            self.animate_title()
-    
-    
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == event.WindowStateChange:
+            if self.windowState() & Qt.WindowNoState:
+                QTimer.singleShot(50, self.showFullScreen)
+
+    # -------------------
+    # Main screen
+    # -------------------
     def show_main_screen(self):
-        self.clear_layout(hide_only=True)
+        self.clear_layout(hide_only=False, skip=[self.appbar])
         self.showFullScreen()
-        
+
         self.logo_label = QLabel("""
         <span style='color:#00e5ff;'>C</span>
         <span style='color:#00d4ff;'>A</span>
@@ -150,26 +242,10 @@ class GestureUI(QWidget):
         <span style='color:#00b2ff;'>I</span>
         <span style='color:#009eff;'>R</span>
         <span style='color:#008aff;'>A</span>
-    """)
-    
+        """)
         self.logo_label.setTextFormat(Qt.RichText)
-
         self.logo_label.setAlignment(Qt.AlignCenter)
         self.logo_label.setFont(QFont("Arial", 80, QFont.Bold))
-
-        self.logo_label.setStyleSheet("""
-            QLabel {
-                font-size: 80px;
-                font-weight: bold;
-                margin-bottom: 80px;
-            }
-        """)
-
-        glow = QGraphicsDropShadowEffect()
-        glow.setBlurRadius(25)
-        glow.setColor(Qt.cyan)
-        glow.setOffset(0)
-        self.logo_label.setGraphicsEffect(glow)
 
         self.layout.addWidget(self.logo_label)
 
@@ -191,63 +267,37 @@ class GestureUI(QWidget):
                     color: #00FFFF;
                     font-size: 16px;
                     font-weight: bold;
-                    font-family: 'Arial', sans-serif;
-                    border: 2px solid rgb(0, 121, 88);
                     border-radius: 12px;
                     padding: 10px 20px;
                 }
                 QPushButton:hover {
                     background-color: #324AB2;
                     color: white;
-                    border-color: white;
                 }
             """)
             button_layout.addWidget(btn)
 
         self.layout.addLayout(button_layout)
 
-        # ✅ Status label
         self.status_label = QLabel("Ready")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("color: yellow; font-size: 14px; margin-top: 20px;")
         self.layout.addWidget(self.status_label)
 
-        # ✅ Connect buttons
+        # Connect buttons
         self.btn_collect.clicked.connect(self.show_collect_screen)
         self.btn_train.clicked.connect(self.show_train_screen)
         self.btn_recognize.clicked.connect(lambda: self.run_script("recognize_gesture.py", detached=True))
         self.btn_reset.clicked.connect(self.confirm_reset)
 
-        self.widgets = [
-            self.logo_label, self.btn_collect, self.btn_train,
-            self.btn_recognize, self.btn_reset, self.status_label
-        ]
+        self.widgets = [self.logo_label, self.btn_collect, self.btn_train,
+                        self.btn_recognize, self.btn_reset, self.status_label]
 
-
-    def animate_title(self):
-        for i in range(len(self.title_letters)):
-            anim = getattr(self, f"anim_{i}", None)
-            if anim:
-                anim.stop()
-
-    def start_animation():
-        for i, letter in enumerate(self.title_letters):
-            rect = letter.geometry()
-            if rect.isValid():
-                bounce_height = max(10, int(rect.height() * 0.2))
-                anim = QPropertyAnimation(letter, b"geometry", self)
-                anim.setDuration(3800)
-                anim.setStartValue(rect)
-                anim.setEndValue(QRect(rect.x(), rect.y() - bounce_height, rect.width(), rect.height()))
-                anim.setEasingCurve(QEasingCurve.OutBounce)
-                anim.setLoopCount(-1)
-                QTimer.singleShot(i * 400, anim.start)
-                setattr(self, f"anim_{i}", anim)
-
-            QTimer.singleShot(300, start_animation)
-
+    # -------------------
+    # Other screens
+    # -------------------
     def show_collect_screen(self):
-        self.clear_layout()
+        self.clear_layout(skip=[self.appbar])
 
         label = QLabel("Enter gesture label:")
         label.setAlignment(Qt.AlignCenter)
@@ -266,34 +316,23 @@ class GestureUI(QWidget):
 
         self.widgets = [label, self.input_field, start_btn, back_btn]
 
-    def start_collecting(self):
-        gesture_name = self.input_field.text().strip()
-        if not gesture_name:
-            QMessageBox.warning(self, "Input Required", "Please enter a gesture name before starting.")
-            return
-
-        self.clear_layout(hide_only=True)
-        status = QLabel(f"Collecting samples for '{gesture_name}'...")
-        status.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(status)
-        self.widgets = [status]
-
-        
-        self.run_script("collect_data.py", [gesture_name])
-
     def show_train_screen(self):
-        self.clear_layout(hide_only=True)
+        self.clear_layout(skip=[self.appbar])
 
         self.status_label = QLabel("Training model...")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
+
         self.layout.addWidget(self.status_label)
         self.layout.addWidget(self.progress_bar)
 
         self.widgets = [self.status_label, self.progress_bar]
         self.run_script("train_model.py")
 
+    # -------------------
+    # Reset
+    # -------------------
     def confirm_reset(self):
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Warning)
@@ -312,6 +351,23 @@ class GestureUI(QWidget):
             if hasattr(self, "status_label"):
                 self.status_label.setText("Reset canceled.")
 
+    # -------------------
+    # Process handling
+    # -------------------
+    def start_collecting(self):
+        gesture_name = self.input_field.text().strip()
+        if not gesture_name:
+            QMessageBox.warning(self, "Input Required", "Please enter a gesture name before starting.")
+            return
+
+        self.clear_layout(hide_only=True, skip=[self.appbar])
+        status = QLabel(f"Collecting samples for '{gesture_name}'...")
+        status.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(status)
+        self.widgets = [status]
+
+        self.run_script("collect_data.py", [gesture_name])
+
     def run_script(self, script, args=None, detached=False):
         if args is None:
             args = []
@@ -321,10 +377,7 @@ class GestureUI(QWidget):
 
         if not os.path.exists(script_path):
             QMessageBox.critical(self, "Error", f"Script not found:\n{script_path}")
-            print(f"Script not found: {script_path}")
             return
-
-        print(f"▶ Running: {script_path} {' '.join(args)}")
 
         working_dir = os.path.dirname(script_path)
 
@@ -335,10 +388,7 @@ class GestureUI(QWidget):
             self.process.start(sys.executable, [script_path] + args)
 
         if hasattr(self, "status_label") and not detached:
-            try:
-                self.status_label.setText(f"Running {script}...")
-            except RuntimeError:
-                pass
+            self.status_label.setText(f"Running {script}...")
 
     def read_output(self):
         output = bytes(self.process.readAllStandardOutput()).decode("utf-8").strip()
@@ -349,25 +399,27 @@ class GestureUI(QWidget):
 
         if hasattr(self, "progress_bar") and "PROGRESS:" in output:
             try:
-                percent = int(output.split("PROGRESS:")[1].split()[0])
-                self.progress_bar.setValue(min(max(percent, 0), 100))
-            except Exception:
+                p = int(output.split("PROGRESS:")[1].split()[0])
+                self.progress_bar.setValue(max(0, min(100, p)))
+            except:
                 pass
 
         if "COLLECTION_DONE" in output:
-            QMessageBox.information(self, "Data Collection", "✅ Data collection complete!")
+            QMessageBox.information(self, "Data Collection", "Data collection complete!")
             QTimer.singleShot(500, self.show_main_screen)
 
     def on_finished(self):
-        try:
-            if hasattr(self, "status_label") and self.status_label:
-                self.status_label.setText("Process finished.")
-        except RuntimeError:
-            pass
-        QTimer.singleShot(300, self.show_main_screen)
+        if hasattr(self, "status_label"):
+            self.status_label.setText("Process finished.")
+        QTimer.singleShot(400, self.show_main_screen)
 
-    def clear_layout(self, hide_only=False):
+    # -------------------
+    # Layout cleaner
+    # -------------------
+    def clear_layout(self, hide_only=False, skip=[]):
         for child in self.widgets:
+            if child in skip:
+                continue
             try:
                 if hide_only:
                     child.hide()
@@ -376,7 +428,10 @@ class GestureUI(QWidget):
                     child.deleteLater()
             except RuntimeError:
                 pass
-        self.widgets = []
+
+        self.widgets = skip.copy()
+
+
 
 # ==================================================
 # MAIN ENTRY POINT
