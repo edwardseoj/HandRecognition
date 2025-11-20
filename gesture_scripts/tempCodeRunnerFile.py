@@ -8,7 +8,6 @@ import platform
 import subprocess
 import h5py
 import json
-import ctypes
 
 try:
     import keyboard
@@ -111,7 +110,7 @@ def run_spotify_command(gesture):
             subprocess.run(cmds[gesture])
         return
 
-    elif OS == "darwin":
+    if OS == "darwin":
         cmds = {
             "play": 'tell application "Spotify" to play',
             "pause": 'tell application "Spotify" to pause',
@@ -124,27 +123,18 @@ def run_spotify_command(gesture):
             subprocess.run(["osascript", "-e", cmds[gesture]])
         return
 
-    elif OS == "windows":
-        VK = {
-        "play":        0xB3,  # VK_MEDIA_PLAY_PAUSE
-        "pause":       0xB3,
-        "next":        0xB0,  # VK_MEDIA_NEXT_TRACK
-        "previous":    0xB1,  # VK_MEDIA_PREV_TRACK
-        "volume_up":   0xAF,  # VK_VOLUME_UP
-        "volume_down": 0xAE,  # VK_VOLUME_DOWN
+    if OS == "windows":
+        cmds = {
+            "play": "play/pause media",
+            "pause": "play/pause media",
+            "next": "next track media",
+            "previous": "previous track media",
+            "volume_up": "volume up",
+            "volume_down": "volume down",
         }
-
-
-    key = VK.get(gesture)
-    if key:
-        # Press
-        ctypes.windll.user32.keybd_event(key, 0, 0, 0)
-        # Release
-        ctypes.windll.user32.keybd_event(key, 0, 2, 0)
-        print(f"✔ Windows media key sent: {hex(key)}")
-
-    return
-
+        if gesture in cmds and keyboard:
+            keyboard.send(cmds[gesture])
+        return
 
 
 # ---------------------------------------------------------
