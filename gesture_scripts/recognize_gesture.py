@@ -6,9 +6,9 @@ import numpy as np
 import tensorflow as tf
 import platform
 import subprocess
+import ctypes
 import h5py
 import json
-import ctypes
 
 try:
     import keyboard
@@ -30,58 +30,53 @@ if not os.path.exists(LABEL_PATH):
 labels = np.load(LABEL_PATH, allow_pickle=True)
 
 # ---------------------------------------------------------
-# FIX BROKEN OLD H5 MODELS
+# Universal legacy H5 model loader
 # ---------------------------------------------------------
-def sanitize_layer_config(cfg):
-    """Remove or rewrite legacy dtype fields that break TF 2.x"""
+def load_legacy_h5_model(path):
+    try:
+        # Try direct load first
+        model = tf.keras.models.load_model(path, compile=False)
+        print("✅ Loaded model directly")
+        return model
+    except Exception as e:
+        print("⚠ Direct load failed, applying legacy patch...", e)
+        
+        with h5py.File(path, 'r+') as f:
+            if 'model_config' in f.attrs:
+                raw = f.attrs['model_config']
+                if isinstance(raw, bytes):
+                    raw = raw.decode('utf-8')
+                config = json.loads(raw)
 
-    # Remove dtype_policy
-    if "dtype_policy" in cfg:
-        cfg.pop("dtype_policy")
+                # Fix top-level dtype
+                if 'config' in config and 'dtype' in config['config']:
+                    cfg_dtype = config['config']['dtype']
+                    if isinstance(cfg_dtype, dict) or 'DTypePolicy' in str(cfg_dtype):
+                        config['config']['dtype'] = 'float32'
 
-    # Remove old dtype stored as dict
-    if "dtype" in cfg:
-        if isinstance(cfg["dtype"], dict):
-            cfg["dtype"] = "float32"
-        elif "DTypePolicy" in str(cfg["dtype"]):
-            cfg["dtype"] = "float32"
+                # Patch each layer
+                for layer in config['config']['layers']:
+                    cfg = layer.get('config', {})
+                    # Remove dtype_policy
+                    cfg.pop('dtype_policy', None)
+                    # Fix dtype dicts
+                    if 'dtype' in cfg and (isinstance(cfg['dtype'], dict) or 'DTypePolicy' in str(cfg['dtype'])):
+                        cfg['dtype'] = 'float32'
+                    # Rename batch_shape → batch_input_shape
+                    if 'batch_shape' in cfg:
+                        cfg['batch_input_shape'] = cfg.pop('batch_shape')
+                    layer['config'] = cfg
 
-    # Handle batch_shape
-    if "batch_shape" in cfg:
-        cfg["batch_input_shape"] = cfg.pop("batch_shape")
+                # Save patched config back to H5
+                f.attrs['model_config'] = json.dumps(config).encode('utf-8')
 
-    return cfg
-
-
-def load_keras_model_safely(path):
-    """Load legacy H5 model by rewriting its JSON config."""
-    with h5py.File(path, "r") as f:
-        raw = f.attrs.get("model_config")
-        if raw is None:
-            raise ValueError("❌ model_config missing in .h5 file")
-
-        if isinstance(raw, bytes):
-            raw = raw.decode("utf-8")
-
-        config = json.loads(raw)
-
-        # Patch layers
-        for layer in config["config"]["layers"]:
-            layer["config"] = sanitize_layer_config(layer["config"])
-
-        # Build model
-        model = tf.keras.models.model_from_json(json.dumps(config))
-
-        # Load weights normally
-        model.load_weights(path)
-
+        # Retry load
+        model = tf.keras.models.load_model(path, compile=False)
+        print("✅ Loaded legacy H5 model after patch")
         return model
 
-
-# LOAD THE MODEL SAFELY
-model = load_keras_model_safely(MODEL_PATH)
-print("✅ Model loaded successfully with dtype patches!")
-
+# Load model
+model = load_legacy_h5_model(MODEL_PATH)
 
 # ---------------------------------------------------------
 # OS
@@ -89,9 +84,8 @@ print("✅ Model loaded successfully with dtype patches!")
 OS = platform.system().lower()
 print("📌 Detected OS:", OS)
 
-
 # ---------------------------------------------------------
-# Spotify
+# Spotify / media key
 # ---------------------------------------------------------
 def run_spotify_command(gesture):
     print("🎵 Gesture:", gesture)
@@ -126,42 +120,34 @@ def run_spotify_command(gesture):
 
     elif OS == "windows":
         VK = {
-        "play":        0xB3,  # VK_MEDIA_PLAY_PAUSE
-        "pause":       0xB3,
-        "next":        0xB0,  # VK_MEDIA_NEXT_TRACK
-        "previous":    0xB1,  # VK_MEDIA_PREV_TRACK
-        "volume_up":   0xAF,  # VK_VOLUME_UP
-        "volume_down": 0xAE,  # VK_VOLUME_DOWN
+            "play":        0xB3,  # VK_MEDIA_PLAY_PAUSE
+            "pause":       0xB3,
+            "next":        0xB0,  # VK_MEDIA_NEXT_TRACK
+            "previous":    0xB1,  # VK_MEDIA_PREV_TRACK
+            "next2":        0xB0,  # VK_MEDIA_NEXT_TRACK
+            "previous2":    0xB1,  # VK_MEDIA_PREV_TRACK
+            "volume_up":   0xAF,  # VK_VOLUME_UP
+            "volume_down": 0xAE,  # VK_VOLUME_DOWN
         }
-
-
-    key = VK.get(gesture)
-    if key:
-        # Press
-        ctypes.windll.user32.keybd_event(key, 0, 0, 0)
-        # Release
-        ctypes.windll.user32.keybd_event(key, 0, 2, 0)
-        print(f"✔ Windows media key sent: {hex(key)}")
-
-    return
-
-
+        key = VK.get(gesture)
+        if key:
+            ctypes.windll.user32.keybd_event(key, 0, 0, 0)  # Press
+            ctypes.windll.user32.keybd_event(key, 0, 2, 0)  # Release
+            print(f"✔ Windows media key sent: {hex(key)}")
 
 # ---------------------------------------------------------
-# MediaPipe
+# MediaPipe setup
 # ---------------------------------------------------------
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
-
 cap = cv2.VideoCapture(0)
 
 last = None
 cooldown = 30
 timer = 0
 
-
 # ---------------------------------------------------------
-# Main Loop
+# Main loop
 # ---------------------------------------------------------
 with mp_hands.Hands(
     static_image_mode=False,
@@ -183,7 +169,7 @@ with mp_hands.Hands(
             for hand in result.multi_hand_landmarks:
                 mp_draw.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
 
-                # Flatten
+                # Flatten landmarks
                 row = []
                 for lm in hand.landmark:
                     row.extend([lm.x, lm.y, lm.z])
