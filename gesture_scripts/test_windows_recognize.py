@@ -89,6 +89,8 @@ def run_spotify_command(gesture):
             "pause": 'tell application "Spotify" to pause',
             "next": 'tell application "Spotify" to next track',
             "previous": 'tell application "Spotify" to previous track',
+            "next2": 'tell application "Spotify" to next track',
+            "previous2": 'tell application "Spotify" to previous track',
             "volume_up": 'set sound volume to (sound volume + 10)',
             "volume_down": 'set sound volume to (sound volume - 10)',
         }
@@ -102,6 +104,8 @@ def run_spotify_command(gesture):
             "pause":       0xB3,
             "next":        0xB0,  # VK_MEDIA_NEXT_TRACK
             "previous":    0xB1,  # VK_MEDIA_PREV_TRACK
+            "next2":        0xB0,  # VK_MEDIA_NEXT_TRACK
+            "previous2":    0xB1,  # VK_MEDIA_PREV_TRACK
             "volume_up":   0xAF,  # VK_VOLUME_UP
             "volume_down": 0xAE,  # VK_VOLUME_DOWN
         }
