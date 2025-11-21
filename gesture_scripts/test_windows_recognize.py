@@ -7,6 +7,8 @@ import tensorflow as tf
 import platform
 import subprocess
 import ctypes
+import h5py
+import json
 
 try:
     import keyboard
@@ -28,29 +30,49 @@ if not os.path.exists(LABEL_PATH):
 labels = np.load(LABEL_PATH, allow_pickle=True)
 
 # ---------------------------------------------------------
-# Load legacy H5 model safely
+# Universal legacy H5 model loader
 # ---------------------------------------------------------
-import h5py
-
 def load_legacy_h5_model(path):
     try:
-        # Try direct load (works for TF 2.x)
+        # Try direct load first
         model = tf.keras.models.load_model(path, compile=False)
-        print("✅ Loaded model directly with load_model")
+        print("✅ Loaded model directly")
         return model
     except Exception as e:
-        print("⚠ Failed direct load, applying legacy patch...", e)
-        # Legacy patch: remove DTypePolicy references in H5 attributes
+        print("⚠ Direct load failed, applying legacy patch...", e)
+        
         with h5py.File(path, 'r+') as f:
             if 'model_config' in f.attrs:
                 raw = f.attrs['model_config']
                 if isinstance(raw, bytes):
                     raw = raw.decode('utf-8')
-                raw = raw.replace('"DTypePolicy"', '"float32"')
-                f.attrs['model_config'] = raw.encode('utf-8')
+                config = json.loads(raw)
+
+                # Fix top-level dtype
+                if 'config' in config and 'dtype' in config['config']:
+                    cfg_dtype = config['config']['dtype']
+                    if isinstance(cfg_dtype, dict) or 'DTypePolicy' in str(cfg_dtype):
+                        config['config']['dtype'] = 'float32'
+
+                # Patch each layer
+                for layer in config['config']['layers']:
+                    cfg = layer.get('config', {})
+                    # Remove dtype_policy
+                    cfg.pop('dtype_policy', None)
+                    # Fix dtype dicts
+                    if 'dtype' in cfg and (isinstance(cfg['dtype'], dict) or 'DTypePolicy' in str(cfg['dtype'])):
+                        cfg['dtype'] = 'float32'
+                    # Rename batch_shape → batch_input_shape
+                    if 'batch_shape' in cfg:
+                        cfg['batch_input_shape'] = cfg.pop('batch_shape')
+                    layer['config'] = cfg
+
+                # Save patched config back to H5
+                f.attrs['model_config'] = json.dumps(config).encode('utf-8')
+
         # Retry load
         model = tf.keras.models.load_model(path, compile=False)
-        print("✅ Loaded legacy H5 model with patch")
+        print("✅ Loaded legacy H5 model after patch")
         return model
 
 # Load model
@@ -89,8 +111,6 @@ def run_spotify_command(gesture):
             "pause": 'tell application "Spotify" to pause',
             "next": 'tell application "Spotify" to next track',
             "previous": 'tell application "Spotify" to previous track',
-            "next2": 'tell application "Spotify" to next track',
-            "previous2": 'tell application "Spotify" to previous track',
             "volume_up": 'set sound volume to (sound volume + 10)',
             "volume_down": 'set sound volume to (sound volume - 10)',
         }
