@@ -18,7 +18,7 @@ Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, 
 ## How to use
 - run app.py
 - Edit Commands will allow you to edit commands to your liking, as long as it is a valid command
-- Reset will reset all commands to it's default dataset labels (like, palm, fist, etc)
+- Reset will reset all commands to its default dataset labels (like, palm, fist, etc)
 - Start recognition will open the camera and start hand recognition
     - Open Spotify first before pressing this button
 
