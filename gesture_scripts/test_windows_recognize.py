@@ -73,11 +73,13 @@ def run_spotify_command(gesture):
             "play": ["playerctl", "play"],
             "pause": ["playerctl", "pause"],
             "next": ["playerctl", "next"],
-            "next2": ["playerctl", "next"],
             "previous": ["playerctl", "previous"],
-            "previous2": ["playerctl", "previous"],
             "volume_up": ["playerctl", "volume", "0.1+"],
             "volume_down": ["playerctl", "volume", "0.1-"],
+            "volume_25": ["playerctl", "volume", "0.25"],
+            "volume_50": ["playerctl", "volume", "0.50"],
+            "volume_75": ["playerctl", "volume", "0.75"],
+            "volume_100": ["playerctl", "volume", "1.00"],
         }
         if gesture in cmds:
             subprocess.run(cmds[gesture])
@@ -89,10 +91,12 @@ def run_spotify_command(gesture):
             "pause": 'tell application "Spotify" to pause',
             "next": 'tell application "Spotify" to next track',
             "previous": 'tell application "Spotify" to previous track',
-            "next2": 'tell application "Spotify" to next track',
-            "previous2": 'tell application "Spotify" to previous track',
             "volume_up": 'set sound volume to (sound volume + 10)',
             "volume_down": 'set sound volume to (sound volume - 10)',
+            "volume_25": 'set sound volume to 25',
+            "volume_50": 'set sound volume to 50',
+            "volume_75": 'set sound volume to 75',
+            "volume_100": 'set sound volume to 100',
         }
         if gesture in cmds:
             subprocess.run(["osascript", "-e", cmds[gesture]])
@@ -100,20 +104,32 @@ def run_spotify_command(gesture):
 
     elif OS == "windows":
         VK = {
-            "play":        0xB3,  # VK_MEDIA_PLAY_PAUSE
-            "pause":       0xB3,
-            "next":        0xB0,  # VK_MEDIA_NEXT_TRACK
-            "previous":    0xB1,  # VK_MEDIA_PREV_TRACK
-            "next2":        0xB0,  # VK_MEDIA_NEXT_TRACK
-            "previous2":    0xB1,  # VK_MEDIA_PREV_TRACK
-            "volume_up":   0xAF,  # VK_VOLUME_UP
-            "volume_down": 0xAE,  # VK_VOLUME_DOWN
+            "play": 0xB3,
+            "pause": 0xB3,
+            "next": 0xB0,
+            "previous": 0xB1,
+            "volume_up": 0xAF,
+            "volume_down": 0xAE,
         }
+
+        fixed_volume_cmds = {
+            "volume_25": ["nircmd.exe", "setsysvolume", str(int(65535 * 0.25))],
+            "volume_50": ["nircmd.exe", "setsysvolume", str(int(65535 * 0.50))],
+            "volume_75": ["nircmd.exe", "setsysvolume", str(int(65535 * 0.75))],
+            "volume_100": ["nircmd.exe", "setsysvolume", str(int(65535 * 1.00))],
+        }
+
+        if gesture in fixed_volume_cmds:
+            subprocess.run(fixed_volume_cmds[gesture])
+            print(f"✔ Windows volume set via nircmd: {gesture}")
+            return
+
         key = VK.get(gesture)
         if key:
-            ctypes.windll.user32.keybd_event(key, 0, 0, 0)  # Press
-            ctypes.windll.user32.keybd_event(key, 0, 2, 0)  # Release
+            ctypes.windll.user32.keybd_event(key, 0, 0, 0)
+            ctypes.windll.user32.keybd_event(key, 0, 2, 0)
             print(f"✔ Windows media key sent: {hex(key)}")
+
 
 # ---------------------------------------------------------
 # MediaPipe setup
