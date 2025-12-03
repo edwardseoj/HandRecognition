@@ -11,7 +11,8 @@ Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, 
     - `source venvName/bin/activate` for linux/mac
     - `venvName\Scripts\activate` for Windows
 - Download modules for mediapipe, opencv, and tensorflow
-  - `pip install mediapipe==0.10.21 opencv-python==4.10.0.84 tensorflow==2.16.1 numpy<2.0`
+  - `pip install mediapipe opencv-python numpy tensorflow pyqt5 keyboard pycaw
+`
 
 ## How to use
 - run app.py
