@@ -2,6 +2,7 @@
 Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, and tensorflow  
 
 ## Setup
+- Download zip file from FinalTouchUp
 - Download python 3.10.x
     - Anything more or less will break the code
     - verify with `python --version`
@@ -12,7 +13,7 @@ Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, 
     - `venvName\Scripts\activate` for Windows
 - Download modules for mediapipe, opencv, and tensorflow
   - `pip install mediapipe opencv-python numpy tensorflow pyqt5 keyboard pycaw
-`
+
 
 ## How to use
 - run app.py
