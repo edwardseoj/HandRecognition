@@ -1,0 +1,2 @@
+gesture_data/hand_gestures.csv filter=lfs diff=lfs merge=lfs -text
+build/app filter=lfs diff=lfs merge=lfs -text
