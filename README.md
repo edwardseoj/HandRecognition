@@ -2,20 +2,25 @@
 Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, and tensorflow  
 
 ## Setup
+- Download python 3.10.x
+    - Anything more or less will break the code
+    - verify with `python --version`
 - Open terminal and create virtual environment
     - `python -m venv desired_name_of_virtual_env`
 - activate venv with
-    - `source venv/bin/activate` for linux/mac
-    - `venv\Scripts\activate` 
+    - `source venvName/bin/activate` for linux/mac
+    - `venvName\Scripts\activate` for Windows
 - Download modules for mediapipe, opencv, and tensorflow
   - `pip install mediapipe==0.10.21 opencv-python==4.10.0.84 tensorflow==2.16.1 numpy<2.0`
 
 ## How to use
-- collect data with **collect_data.py**
-- train by running **train_model.py**
+- run app.py
+- Edit Commands will allow you to edit commands to your liking, as long as it is a valid command
+- Reset will reset all commands to it's default dataset labels (like, palm, fist, etc)
+- Start recognition will open the camera and start hand recognition
+    - Open Spotify first before pressing this button
 
-- (Optional) reset dataset with **reset_gestures.py**
-
-## Disclaimer
-- Made with ChatGPT
-- On first use, run collect_data.py and train_model.py before running main.py
+## Limitations
+- Made without Spotify API, thus commands are severely limited
+- Mapping of gesture to commands are through *global key commands* and therefore, if other media players are opened, it may not directly communicate with Spotify
+- Allows cross-compatibility but may experience performance overhead in Start Recognition (slow startup ~20 seconds), especially in Windows
