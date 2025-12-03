@@ -74,8 +74,6 @@ def run_spotify_command(gesture):
             "pause": ["playerctl", "pause"],
             "next": ["playerctl", "next"],
             "previous": ["playerctl", "previous"],
-            "volume_up": ["playerctl", "volume", "0.1+"],
-            "volume_down": ["playerctl", "volume", "0.1-"],
             "volume_25": ["playerctl", "volume", "0.25"],
             "volume_50": ["playerctl", "volume", "0.50"],
             "volume_75": ["playerctl", "volume", "0.75"],
@@ -91,8 +89,6 @@ def run_spotify_command(gesture):
             "pause": 'tell application "Spotify" to pause',
             "next": 'tell application "Spotify" to next track',
             "previous": 'tell application "Spotify" to previous track',
-            "volume_up": 'set sound volume to (sound volume + 10)',
-            "volume_down": 'set sound volume to (sound volume - 10)',
             "volume_25": 'set sound volume to 25',
             "volume_50": 'set sound volume to 50',
             "volume_75": 'set sound volume to 75',
@@ -113,10 +109,10 @@ def run_spotify_command(gesture):
         }
 
         fixed_volume_cmds = {
-            "volume_25": ["nircmd.exe", "setsysvolume", str(int(65535 * 0.25))],
-            "volume_50": ["nircmd.exe", "setsysvolume", str(int(65535 * 0.50))],
-            "volume_75": ["nircmd.exe", "setsysvolume", str(int(65535 * 0.75))],
-            "volume_100": ["nircmd.exe", "setsysvolume", str(int(65535 * 1.00))],
+            "volume_25": 25,
+            "volume_50": 50,
+            "volume_75": 75,
+            "volume_100": 100,
         }
 
         if gesture in fixed_volume_cmds:
