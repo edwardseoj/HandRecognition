@@ -1,37 +1,24 @@
-# process_kaggle_dataset.py
 
 import os
 import csv
 import cv2
 import mediapipe as mp
-from tqdm import tqdm  # progress bar
+from tqdm import tqdm  
 
-# -------------------------------
-# CONFIGURATION
-# -------------------------------
-DATA_DIR = "gesture_data/HaGRID"       # Path to manually downloaded Kaggle dataset
+DATA_DIR = "gesture_data/HaGRID"
 OUTPUT_CSV = "gesture_data/hand_gestures.csv"
-TARGET_SAMPLES_PER_LABEL = None        # None = process all images
+TARGET_SAMPLES_PER_LABEL = None
 
-# -------------------------------
-# STEP 1: Prepare CSV
-# -------------------------------
 os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
 if not os.path.exists(OUTPUT_CSV):
     with open(OUTPUT_CSV, "w", newline="") as f:
         header = ["label"] + [f"{c}{i}" for i in range(21) for c in ("x","y","z")]
         csv.writer(f).writerow(header)
-    print(f"✅ Created CSV: {OUTPUT_CSV}")
+    print(f"Created CSV: {OUTPUT_CSV}")
 
-# -------------------------------
-# STEP 2: Initialize MediaPipe
-# -------------------------------
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
-# -------------------------------
-# STEP 3: Process images
-# -------------------------------
 labels = [d for d in os.listdir(DATA_DIR) if os.path.isdir(os.path.join(DATA_DIR, d))]
 total_labels = len(labels)
 
@@ -41,7 +28,6 @@ with mp_hands.Hands(static_image_mode=True, max_num_hands=1) as hands, tqdm(tota
         img_files = os.listdir(label_path)
         count = 0
 
-        # Progress bar for images in this label
         for img_file in tqdm(img_files, desc=f"Processing '{label}'", unit="img", leave=False):
             if TARGET_SAMPLES_PER_LABEL and count >= TARGET_SAMPLES_PER_LABEL:
                 break
@@ -61,7 +47,7 @@ with mp_hands.Hands(static_image_mode=True, max_num_hands=1) as hands, tqdm(tota
                         csv.writer(f).writerow(row)
                     count += 1
 
-        tqdm.write(f"✅ Finished {count} images for label: {label}")
+        tqdm.write(f"Finished {count} images for label: {label}")
         overall_bar.update(1)
 
-print("\n🎉 All images processed! CSV ready for training.")
+print("\nAll images processed! CSV ready for training.")

@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 gesture_data/HaGRID/
 backups/
+gesture_data/hand_gestures.csv
