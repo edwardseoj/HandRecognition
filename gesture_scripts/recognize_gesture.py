@@ -70,14 +70,14 @@ def run_spotify_command(gesture):
 
     if OS == "linux":
         cmds = {
-            "play": ["playerctl", "play"],
-            "pause": ["playerctl", "pause"],
-            "next": ["playerctl", "next"],
-            "previous": ["playerctl", "previous"],
-            "volume_25": ["playerctl", "volume", "0.25"],
-            "volume_50": ["playerctl", "volume", "0.50"],
-            "volume_75": ["playerctl", "volume", "0.75"],
-            "volume_100": ["playerctl", "volume", "1.00"],
+            "play": 'tell application "Spotify" to play',
+            "pause": 'tell application "Spotify" to pause',
+            "next": 'tell application "Spotify" to next track',
+            "previous": 'tell application "Spotify" to previous track',
+            "volume_25": 'set volume output volume 25',
+            "volume_50": 'set volume output volume 50',
+            "volume_75": 'set volume output volume 75',
+            "volume_100": 'set volume output volume 100',
         }
         if gesture in cmds:
             subprocess.run(cmds[gesture])
