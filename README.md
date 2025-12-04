@@ -12,7 +12,7 @@ Hand recognition (soon to connect with an audioplayer) using mediapipe, opencv, 
     - `source venvName/bin/activate` for linux/mac
     - `venvName\Scripts\activate` for Windows
 - Download modules for mediapipe, opencv, and tensorflow
-  - `pip install mediapipe opencv-python numpy tensorflow pyqt5 keyboard pycaw
+  - `pip install mediapipe opencv-python numpy tensorflow pyqt5 keyboard pycaw`
 
 
 ## How to use
