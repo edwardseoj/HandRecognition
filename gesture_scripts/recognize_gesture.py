@@ -1,4 +1,4 @@
-# recognize_gesture.py
+# recognize_gesture.p
 import os
 import cv2
 import mediapipe as mp
@@ -12,6 +12,20 @@ try:
     import keyboard
 except ImportError:
     keyboard = None
+
+# ---------------------------------------------------------
+# OS check
+# ---------------------------------------------------------
+OS = platform.system().lower()
+print("📌 Detected OS:", OS)
+
+# ---------------------------------------------------------
+# Windows pycaw imports
+# ---------------------------------------------------------
+if OS == "windows":
+    from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+    from comtypes import CLSCTX_ALL
+    from ctypes import cast, POINTER
 
 # ---------------------------------------------------------
 # Paths
@@ -34,13 +48,11 @@ import h5py
 
 def load_legacy_h5_model(path):
     try:
-        # Try direct load (works for TF 2.x)
         model = tf.keras.models.load_model(path, compile=False)
         print("✅ Loaded model directly with load_model")
         return model
     except Exception as e:
         print("⚠ Failed direct load, applying legacy patch...", e)
-        # Legacy patch: remove DTypePolicy references in H5 attributes
         with h5py.File(path, 'r+') as f:
             if 'model_config' in f.attrs:
                 raw = f.attrs['model_config']
@@ -48,22 +60,29 @@ def load_legacy_h5_model(path):
                     raw = raw.decode('utf-8')
                 raw = raw.replace('"DTypePolicy"', '"float32"')
                 f.attrs['model_config'] = raw.encode('utf-8')
-        # Retry load
         model = tf.keras.models.load_model(path, compile=False)
         print("✅ Loaded legacy H5 model with patch")
         return model
 
-# Load model
 model = load_legacy_h5_model(MODEL_PATH)
 
 # ---------------------------------------------------------
-# OS
+# Windows volume function using pycaw
 # ---------------------------------------------------------
-OS = platform.system().lower()
-print("📌 Detected OS:", OS)
+def set_volume_windows(volume_percent):
+    try:
+        devices = AudioUtilities.GetSpeakers()
+        interface = devices.Activate(
+            IAudioEndpointVolume._iid_, CLSCTX_ALL, None
+        )
+        volume = cast(interface, POINTER(IAudioEndpointVolume))
+        volume.SetMasterVolumeLevelScalar(volume_percent / 100.0, None)
+        print(f"✔ Windows volume set to {volume_percent}%")
+    except Exception as e:
+        print("⚠ Failed to set Windows volume:", e)
 
 # ---------------------------------------------------------
-# Spotify / media key
+# Spotify / media key control
 # ---------------------------------------------------------
 def run_spotify_command(gesture):
     print("🎵 Gesture:", gesture)
@@ -116,8 +135,7 @@ def run_spotify_command(gesture):
         }
 
         if gesture in fixed_volume_cmds:
-            subprocess.run(fixed_volume_cmds[gesture])
-            print(f"✔ Windows volume set via nircmd: {gesture}")
+            set_volume_windows(fixed_volume_cmds[gesture])
             return
 
         key = VK.get(gesture)
@@ -125,7 +143,6 @@ def run_spotify_command(gesture):
             ctypes.windll.user32.keybd_event(key, 0, 0, 0)
             ctypes.windll.user32.keybd_event(key, 0, 2, 0)
             print(f"✔ Windows media key sent: {hex(key)}")
-
 
 # ---------------------------------------------------------
 # MediaPipe setup
