@@ -7,6 +7,12 @@ import platform
 import subprocess
 import ctypes
 
+# Optional: keyboard handling
+try:
+    import keyboard
+except ImportError:
+    keyboard = None
+
 # =======================
 # OS DETECTION
 # =======================
@@ -33,7 +39,7 @@ if not os.path.exists(LABEL_PATH):
 labels = np.load(LABEL_PATH, allow_pickle=True)
 
 # =======================
-# LOAD KERAS MODEL
+# LOAD MODEL
 # =======================
 model = tf.keras.models.load_model(MODEL_PATH)
 print("Model loaded successfully")
@@ -44,7 +50,9 @@ print("Model loaded successfully")
 def set_volume_windows(volume_percent):
     try:
         devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        interface = devices.Activate(
+            IAudioEndpointVolume._iid_, CLSCTX_ALL, None
+        )
         volume = cast(interface, POINTER(IAudioEndpointVolume))
         volume.SetMasterVolumeLevelScalar(volume_percent / 100.0, None)
         print(f"Volume set to {volume_percent}%")
@@ -52,7 +60,7 @@ def set_volume_windows(volume_percent):
         print("Volume error:", e)
 
 # =======================
-# SPOTIFY CONTROL
+# SPOTIFY COMMANDS
 # =======================
 def run_spotify_command(gesture):
     print("Gesture:", gesture)
@@ -104,9 +112,16 @@ mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 cap = cv2.VideoCapture(0)
 
+# =======================
+# GESTURE STABILIZATION
+# =======================
 last_gesture = None
-cooldown = 30
+cooldown = 30           # frames to wait before sending next command
 timer = 0
+
+gesture_history = []    # recent predictions
+history_length = 5      # how many frames to smooth over
+confidence_threshold = 0.6  # ignore low-confidence predictions
 
 # =======================
 # MAIN LOOP
@@ -131,20 +146,38 @@ with mp_hands.Hands(
             for hand in result.multi_hand_landmarks:
                 mp_draw.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
 
-                # Flatten landmarks in the order the model expects: [x1, y1, z1, x2, y2, z2, ...]
+                # Flatten hand landmarks in correct order
                 row = []
                 for lm in hand.landmark:
                     row.extend([lm.x, lm.y, lm.z])
+
                 X = np.array(row).reshape(1, -1)
 
-                # Make prediction
+                # Predict gesture
                 pred = model.predict(X, verbose=0)
-                gesture = labels[np.argmax(pred)]
+                prob = np.max(pred)
+                gesture_candidate = labels[np.argmax(pred)]
 
-                # Display gesture
-                cv2.putText(frame, gesture, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                # Only consider confident predictions
+                if prob >= confidence_threshold:
+                    gesture_history.append(gesture_candidate)
 
-                # Run command if gesture changed and cooldown passed
+                # Keep history length fixed
+                if len(gesture_history) > history_length:
+                    gesture_history.pop(0)
+
+                # Majority vote for stable gesture
+                if gesture_history:
+                    gesture = max(set(gesture_history), key=gesture_history.count)
+                else:
+                    gesture = last_gesture
+
+                # Display on frame
+                cv2.putText(frame, gesture, (10, 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1,
+                            (0, 255, 0), 2)
+
+                # Trigger command if cooldown finished and gesture changed
                 if timer <= 0 and gesture != last_gesture:
                     run_spotify_command(str(gesture))
                     last_gesture = gesture
