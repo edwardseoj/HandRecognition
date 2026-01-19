@@ -6,12 +6,17 @@ import tensorflow as tf
 import platform
 import subprocess
 import ctypes
+import json
+import h5py
 
 try:
     import keyboard
 except ImportError:
     keyboard = None
 
+# =======================
+# OS DETECTION
+# =======================
 OS = platform.system().lower()
 print("Detected OS:", OS)
 
@@ -20,39 +25,69 @@ if OS == "windows":
     from comtypes import CLSCTX_ALL
     from ctypes import cast, POINTER
 
+# =======================
+# PATHS
+# =======================
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "models", "gesture_model.h5")
+# MODEL_PATH = os.path.join(BASE_DIR, "models", "gesture_model.h5")
+MODEL_PATH = os.path.join(BASE_DIR, "models", "gesture_model.keras")
 LABEL_PATH = os.path.join(BASE_DIR, "models", "gesture_labels.npy")
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError("Model not found at: " + MODEL_PATH)
 if not os.path.exists(LABEL_PATH):
-    raise FileNotFoundError("Gesture labels not found at: " + LABEL_PATH)
+    raise FileNotFoundError("Labels not found at: " + LABEL_PATH)
 
 labels = np.load(LABEL_PATH, allow_pickle=True)
 
+# Load keras model
+model = tf.keras.models.load_model(MODEL_PATH)
+print("Model loaded successfully")
+
+# =======================
+# LEGACY MODEL LOADER (SOLUTION 1)
+# =======================
+import json
 import h5py
+from tensorflow import keras
 
 def load_legacy_h5_model(path):
-    try:
-        model = tf.keras.models.load_model(path, compile=False)
-        print("Loaded model directly with load_model")
-        return model
-    except Exception as e:
-        print("Failed direct load, applying legacy patch...", e)
-        with h5py.File(path, 'r+') as f:
-            if 'model_config' in f.attrs:
-                raw = f.attrs['model_config']
-                if isinstance(raw, bytes):
-                    raw = raw.decode('utf-8')
-                raw = raw.replace('"DTypePolicy"', '"float32"')
-                f.attrs['model_config'] = raw.encode('utf-8')
-        model = tf.keras.models.load_model(path, compile=False)
-        print("Loaded legacy H5 model with patch")
-        return model
+    with h5py.File(path, "r") as f:
+        model_config = f.attrs.get("model_config")
+        if isinstance(model_config, bytes):
+            model_config = model_config.decode("utf-8")
 
-model = load_legacy_h5_model(MODEL_PATH)
+        config = json.loads(model_config)
 
+        # ===== FIX InputLayer =====
+        for layer in config["config"]["layers"]:
+            cfg = layer["config"]
+
+            if layer["class_name"] == "InputLayer":
+                if "batch_shape" in cfg:
+                    cfg["input_shape"] = cfg["batch_shape"][1:]
+                    cfg.pop("batch_shape", None)
+
+            # ===== FIX dtype policy (Keras 3) =====
+            if "dtype" in cfg:
+                dtype = cfg["dtype"]
+
+                # Old serialized dtype object → string
+                if isinstance(dtype, dict):
+                    cfg["dtype"] = "float32"
+
+        # ===== BUILD MODEL =====
+        # model = keras.models.model_from_json(json.dumps(config))
+        # model = tf.keras.models.load_model("models/gesture_model.keras")
+        model = tf.keras.models.load_model(MODEL_PATH)
+        model.load_weights(path)
+
+    print("Legacy H5 model loaded with dtype + InputLayer patch")
+    return model
+
+# =======================
+# WINDOWS VOLUME CONTROL
+# =======================
 def set_volume_windows(volume_percent):
     try:
         devices = AudioUtilities.GetSpeakers()
@@ -61,29 +96,17 @@ def set_volume_windows(volume_percent):
         )
         volume = cast(interface, POINTER(IAudioEndpointVolume))
         volume.SetMasterVolumeLevelScalar(volume_percent / 100.0, None)
-        print(f"Windows volume set to {volume_percent}%")
+        print(f"Volume set to {volume_percent}%")
     except Exception as e:
-        print("Failed to set Windows volume:", e)
+        print("Volume error:", e)
 
+# =======================
+# SPOTIFY COMMANDS
+# =======================
 def run_spotify_command(gesture):
     print("Gesture:", gesture)
 
-    if OS == "linux":
-        cmds = {
-            "play": 'tell application "Spotify" to play',
-            "pause": 'tell application "Spotify" to pause',
-            "next": 'tell application "Spotify" to next track',
-            "previous": 'tell application "Spotify" to previous track',
-            "volume_25": 'set volume output volume 25',
-            "volume_50": 'set volume output volume 50',
-            "volume_75": 'set volume output volume 75',
-            "volume_100": 'set volume output volume 100',
-        }
-        if gesture in cmds:
-            subprocess.run(cmds[gesture])
-        return
-
-    elif OS == "darwin":
+    if OS == "darwin":
         cmds = {
             "play": 'tell application "Spotify" to play',
             "pause": 'tell application "Spotify" to pause',
@@ -96,7 +119,6 @@ def run_spotify_command(gesture):
         }
         if gesture in cmds:
             subprocess.run(["osascript", "-e", cmds[gesture]])
-        return
 
     elif OS == "windows":
         VK = {
@@ -108,31 +130,37 @@ def run_spotify_command(gesture):
             "volume_down": 0xAE,
         }
 
-        fixed_volume_cmds = {
+        fixed_volume = {
             "volume_25": 25,
             "volume_50": 50,
             "volume_75": 75,
             "volume_100": 100,
         }
 
-        if gesture in fixed_volume_cmds:
-            set_volume_windows(fixed_volume_cmds[gesture])
+        if gesture in fixed_volume:
+            set_volume_windows(fixed_volume[gesture])
             return
 
         key = VK.get(gesture)
         if key:
             ctypes.windll.user32.keybd_event(key, 0, 0, 0)
             ctypes.windll.user32.keybd_event(key, 0, 2, 0)
-            print(f"Windows media key sent: {hex(key)}")
 
+# =======================
+# MEDIAPIPE SETUP
+# =======================
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
+
 cap = cv2.VideoCapture(0)
 
-last = None
+last_gesture = None
 cooldown = 30
 timer = 0
 
+# =======================
+# MAIN LOOP
+# =======================
 with mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=1,
@@ -141,8 +169,8 @@ with mp_hands.Hands(
 ) as hands:
 
     while cap.isOpened():
-        ok, frame = cap.read()
-        if not ok:
+        ret, frame = cap.read()
+        if not ret:
             continue
 
         frame = cv2.flip(frame, 1)
@@ -162,12 +190,13 @@ with mp_hands.Hands(
                 pred = model.predict(X, verbose=0)
                 gesture = labels[np.argmax(pred)]
 
-                cv2.putText(frame, str(gesture), (10, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(frame, gesture, (10, 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1,
+                            (0, 255, 0), 2)
 
-                if timer <= 0 and gesture != last:
+                if timer <= 0 and gesture != last_gesture:
                     run_spotify_command(str(gesture))
-                    last = gesture
+                    last_gesture = gesture
                     timer = cooldown
 
         if timer > 0:
