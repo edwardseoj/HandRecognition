@@ -6,13 +6,6 @@ import tensorflow as tf
 import platform
 import subprocess
 import ctypes
-import json
-import h5py
-
-try:
-    import keyboard
-except ImportError:
-    keyboard = None
 
 # =======================
 # OS DETECTION
@@ -29,61 +22,21 @@ if OS == "windows":
 # PATHS
 # =======================
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-# MODEL_PATH = os.path.join(BASE_DIR, "models", "gesture_model.h5")
 MODEL_PATH = os.path.join(BASE_DIR, "models", "gesture_model.keras")
 LABEL_PATH = os.path.join(BASE_DIR, "models", "gesture_labels.npy")
 
 if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError("Model not found at: " + MODEL_PATH)
+    raise FileNotFoundError(f"Model not found at: {MODEL_PATH}")
 if not os.path.exists(LABEL_PATH):
-    raise FileNotFoundError("Labels not found at: " + LABEL_PATH)
+    raise FileNotFoundError(f"Labels not found at: {LABEL_PATH}")
 
 labels = np.load(LABEL_PATH, allow_pickle=True)
 
-# Load keras model
+# =======================
+# LOAD KERAS MODEL
+# =======================
 model = tf.keras.models.load_model(MODEL_PATH)
 print("Model loaded successfully")
-
-# =======================
-# LEGACY MODEL LOADER (SOLUTION 1)
-# =======================
-import json
-import h5py
-from tensorflow import keras
-
-def load_legacy_h5_model(path):
-    with h5py.File(path, "r") as f:
-        model_config = f.attrs.get("model_config")
-        if isinstance(model_config, bytes):
-            model_config = model_config.decode("utf-8")
-
-        config = json.loads(model_config)
-
-        # ===== FIX InputLayer =====
-        for layer in config["config"]["layers"]:
-            cfg = layer["config"]
-
-            if layer["class_name"] == "InputLayer":
-                if "batch_shape" in cfg:
-                    cfg["input_shape"] = cfg["batch_shape"][1:]
-                    cfg.pop("batch_shape", None)
-
-            # ===== FIX dtype policy (Keras 3) =====
-            if "dtype" in cfg:
-                dtype = cfg["dtype"]
-
-                # Old serialized dtype object → string
-                if isinstance(dtype, dict):
-                    cfg["dtype"] = "float32"
-
-        # ===== BUILD MODEL =====
-        # model = keras.models.model_from_json(json.dumps(config))
-        # model = tf.keras.models.load_model("models/gesture_model.keras")
-        model = tf.keras.models.load_model(MODEL_PATH)
-        model.load_weights(path)
-
-    print("Legacy H5 model loaded with dtype + InputLayer patch")
-    return model
 
 # =======================
 # WINDOWS VOLUME CONTROL
@@ -91,9 +44,7 @@ def load_legacy_h5_model(path):
 def set_volume_windows(volume_percent):
     try:
         devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(
-            IAudioEndpointVolume._iid_, CLSCTX_ALL, None
-        )
+        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
         volume = cast(interface, POINTER(IAudioEndpointVolume))
         volume.SetMasterVolumeLevelScalar(volume_percent / 100.0, None)
         print(f"Volume set to {volume_percent}%")
@@ -101,7 +52,7 @@ def set_volume_windows(volume_percent):
         print("Volume error:", e)
 
 # =======================
-# SPOTIFY COMMANDS
+# SPOTIFY CONTROL
 # =======================
 def run_spotify_command(gesture):
     print("Gesture:", gesture)
@@ -151,7 +102,6 @@ def run_spotify_command(gesture):
 # =======================
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
-
 cap = cv2.VideoCapture(0)
 
 last_gesture = None
@@ -181,19 +131,20 @@ with mp_hands.Hands(
             for hand in result.multi_hand_landmarks:
                 mp_draw.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
 
+                # Flatten landmarks in the order the model expects: [x1, y1, z1, x2, y2, z2, ...]
                 row = []
                 for lm in hand.landmark:
                     row.extend([lm.x, lm.y, lm.z])
-
                 X = np.array(row).reshape(1, -1)
 
+                # Make prediction
                 pred = model.predict(X, verbose=0)
                 gesture = labels[np.argmax(pred)]
 
-                cv2.putText(frame, gesture, (10, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1,
-                            (0, 255, 0), 2)
+                # Display gesture
+                cv2.putText(frame, gesture, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
+                # Run command if gesture changed and cooldown passed
                 if timer <= 0 and gesture != last_gesture:
                     run_spotify_command(str(gesture))
                     last_gesture = gesture
