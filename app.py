@@ -289,54 +289,156 @@ class GestureUI(QWidget):
         try:
             BASE_DIR = os.path.dirname(os.path.abspath(__file__))
             LABEL_PATH = os.path.join(BASE_DIR, "models", "gesture_labels.npy")
+
             if not os.path.exists(LABEL_PATH):
                 self.show_message_popup("Error", f"gesture_labels.npy not found at:\n{LABEL_PATH}")
                 return
+
             labels = np.load(LABEL_PATH, allow_pickle=True)
             if len(labels) == 0:
                 self.show_message_popup("Warning", "gesture_labels.npy is empty!")
                 return
-            valid_commands = ["play", "pause", "next", "previous", "mute", "volume_25", "volume_50", "volume_75", "volume_100"]
+
+            valid_commands = [
+                "play", "pause", "next", "previous",
+                "mute", "volume_25", "volume_50",
+                "volume_75", "volume_100"
+            ]
+
             popup = QDialog(self)
             popup.setWindowTitle("Edit Commands")
-            popup.setStyleSheet("background-color: white; color: black;")
             popup.setModal(True)
             popup.setFixedSize(650, 620)
+            popup.setStyleSheet("background-color: white; color: black;")
+
             layout = QVBoxLayout(popup)
             layout.setContentsMargins(20, 20, 20, 20)
             layout.setSpacing(12)
+
+            # ---------- VALID COMMANDS INFO ----------
             valid_lbl_title = QLabel("Valid commands (required):")
             valid_lbl_title.setStyleSheet("font-weight: bold; font-size: 14px;")
             layout.addWidget(valid_lbl_title)
+
             valid_text = QLabel(", ".join(valid_commands))
             valid_text.setWordWrap(True)
             valid_text.setStyleSheet("font-size: 13px;")
             layout.addWidget(valid_text)
+
+            # ---------- STICKY HEADER ----------
+            header_widget = QWidget()
+            header_layout = QHBoxLayout(header_widget)
+            header_layout.setContentsMargins(10, 8, 10, 8)
+            header_layout.setSpacing(20)
+
+            header_widget.setStyleSheet("""
+                background-color: #1e1e1e;
+                border: 2px solid #00e5ff;
+                border-radius: 8px;
+            """)
+
+            hdr_cmd = QLabel("Commands")
+            hdr_cmd.setFixedWidth(220)
+            hdr_cmd.setAlignment(Qt.AlignCenter)
+            hdr_cmd.setStyleSheet("""
+                color: #00e5ff;
+                font-size: 15px;
+                font-weight: bold;
+            """)
+
+            hdr_user = QLabel("User Input")
+            hdr_user.setAlignment(Qt.AlignCenter)
+            hdr_user.setStyleSheet("""
+                color: #ffd54f;
+                font-size: 15px;
+                font-weight: bold;
+            """)
+
+            header_layout.addStretch()
+            header_layout.addWidget(hdr_cmd)
+            header_layout.addWidget(hdr_user)
+            header_layout.addStretch()
+
+            layout.addWidget(header_widget)
+
+            # ---------- SCROLL AREA ----------
             scroll_area = QScrollArea()
             scroll_area.setWidgetResizable(True)
+
             scroll_widget = QWidget()
             scroll_layout = QVBoxLayout(scroll_widget)
             scroll_layout.setSpacing(10)
             scroll_layout.setContentsMargins(10, 10, 10, 10)
+
             self.label_inputs = []
+
             for old_label in labels:
                 row = QHBoxLayout()
+
                 lbl = QLabel(str(old_label))
-                lbl.setStyleSheet("font-weight: bold; font-size: 16px;")
                 lbl.setFixedWidth(220)
                 lbl.setAlignment(Qt.AlignCenter)
+                lbl.setStyleSheet("""
+                    font-weight: bold;
+                    font-size: 16px;
+                    color: #0d47a1;
+                """)
+                lbl.setToolTip(
+                    f"Command: {old_label}\n"
+                    "This is a required system command.\n"
+                    "You may rename it, but it must map to a valid command."
+                )
+
                 inp = QLineEdit()
                 inp.setPlaceholderText("New name (leave blank to keep)")
-                inp.setStyleSheet("font-size: 16px; padding: 5px; color: black;")
+                inp.setStyleSheet("""
+                    font-size: 16px;
+                    padding: 6px;
+                    color: black;
+                    background-color: #f5f5f5;
+                    border: 1px solid #bbb;
+                    border-radius: 6px;
+                """)
+
+                # ---- highlight changed inputs only ----
+                def make_highlight(line_edit, original_text):
+                    def _on_change():
+                        txt = line_edit.text().strip()
+                        if txt and txt != original_text:
+                            line_edit.setStyleSheet("""
+                                font-size: 16px;
+                                padding: 6px;
+                                color: black;
+                                background-color: #fff3cd;
+                                border: 2px solid #ff9800;
+                                border-radius: 6px;
+                            """)
+                        else:
+                            line_edit.setStyleSheet("""
+                                font-size: 16px;
+                                padding: 6px;
+                                color: black;
+                                background-color: #f5f5f5;
+                                border: 1px solid #bbb;
+                                border-radius: 6px;
+                            """)
+                    return _on_change
+
+                inp.textChanged.connect(make_highlight(inp, str(old_label)))
+
                 row.addStretch()
                 row.addWidget(lbl)
                 row.addWidget(inp)
                 row.addStretch()
+
                 scroll_layout.addLayout(row)
                 self.label_inputs.append((old_label, inp))
+
             scroll_widget.setLayout(scroll_layout)
             scroll_area.setWidget(scroll_widget)
             layout.addWidget(scroll_area)
+
+            # ---------- SAVE BUTTON ----------
             btn_save = QPushButton("Save Changes")
             btn_save.setCursor(Qt.PointingHandCursor)
             btn_save.setStyleSheet("""
@@ -352,10 +454,13 @@ class GestureUI(QWidget):
             """)
             btn_save.clicked.connect(lambda: self.save_label_edits(LABEL_PATH, popup, valid_commands))
             layout.addWidget(btn_save, alignment=Qt.AlignCenter)
+
             popup.exec_()
+
         except Exception as e:
             traceback.print_exc()
             self.show_message_popup("Error", f"Exception:\n{str(e)}")
+
 
     def save_label_edits(self, path, popup, valid_commands):
         try:
