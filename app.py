@@ -26,10 +26,8 @@ class AppBar(QWidget):
 
         btn_min = QPushButton("—")
         btn_min.setObjectName("minimize")
-
         btn_max = QPushButton("❐")
         btn_max.setObjectName("maximize")
-
         btn_close = QPushButton("✕")
         btn_close.setObjectName("exit")
 
@@ -45,7 +43,6 @@ class AppBar(QWidget):
 
         self.setLayout(layout)
         self.drag_pos = None
-
         self.setStyleSheet(self.btn_style())
 
     def btn_style(self):
@@ -57,30 +54,12 @@ class AppBar(QWidget):
                 background-color: gray;
                 border-radius: 6px;
             }
-            QPushButton#minimize:hover {
-                background-color: yellow;
-                color: black
-            }
-            QPushButton#minimize:pressed {
-                background-color: golden-rod;
-                color: black;
-            }
-
-            QPushButton#maximize:hover {
-                background-color: green;
-            }
-
-            QPushButton#maximize:pressed {
-                background-color: dark-green;
-            }
-
-            QPushButton#exit:hover {
-                background-color: red;
-            }
-
-            QPushButton#exit:pressed {
-                background-color: dark-red;
-            }
+            QPushButton#minimize:hover { background-color: yellow; color: black }
+            QPushButton#minimize:pressed { background-color: golden-rod; color: black; }
+            QPushButton#maximize:hover { background-color: green; }
+            QPushButton#maximize:pressed { background-color: dark-green; }
+            QPushButton#exit:hover { background-color: red; }
+            QPushButton#exit:pressed { background-color: dark-red; }
         """
 
     def minimize(self):
@@ -247,9 +226,6 @@ class GestureUI(QWidget):
         self.btn_recognize = QPushButton("Start Recognition")
         self.btn_recognize.setCursor(Qt.PointingHandCursor)
         self.btn_recognize.setMinimumHeight(120)
-        # self.btn_reset = QPushButton("Reset")
-        # self.btn_reset.setCursor(Qt.PointingHandCursor)
-        # self.btn_reset.setMinimumHeight(120)
 
         btn_style = """
             QPushButton {
@@ -270,8 +246,6 @@ class GestureUI(QWidget):
 
         button_layout.addWidget(self.btn_edit)
         button_layout.addWidget(self.btn_recognize)
-        # button_layout.addWidget(self.btn_reset)
-
         self.layout.addLayout(button_layout)
 
         self.status_label = QLabel("Ready")
@@ -281,7 +255,6 @@ class GestureUI(QWidget):
 
         self.btn_edit.clicked.connect(self.show_edit_labels_ui)
         self.btn_recognize.clicked.connect(lambda: self.run_script("recognize_gesture.py", detached=True))
-        # self.btn_reset.clicked.connect(lambda: self.run_script_with_popup("train_model.py"))
 
         self.widgets = [self.logo_label, self.btn_edit, self.btn_recognize, self.status_label]
 
@@ -328,47 +301,102 @@ class GestureUI(QWidget):
             if len(labels) == 0:
                 self.show_message_popup("Warning", "gesture_labels.npy is empty!")
                 return
-            valid_commands = ["play", "pause", "next", "previous", "mute", "volume_25", "volume_50", "volume_75", "volume_100"]
+
+            valid_commands = ["play", "pause", "next", "previous", "mute",
+                            "volume_25", "volume_50", "volume_75", "volume_100"]
+
+            gesture_names = [
+                "dislike", "four", "like", "mute", "no_gesture", "ok", "one", "fist",
+                "peace", "peace_inverted", "palm", "rock", "call", "stop",
+                "stop_inverted", "three", "three2", "two_up", "two_up_inverted"
+            ]
+
             popup = QDialog(self)
             popup.setWindowTitle("Edit Commands")
             popup.setStyleSheet("background-color: white; color: black;")
             popup.setModal(True)
-            popup.setFixedSize(650, 620)
+            popup.setFixedSize(680, 620)
             layout = QVBoxLayout(popup)
             layout.setContentsMargins(20, 20, 20, 20)
-            layout.setSpacing(12)
+            layout.setSpacing(15)
+
+            # --- Valid commands label (moved above table) ---
             valid_lbl_title = QLabel("Valid commands (required):")
-            valid_lbl_title.setStyleSheet("font-weight: bold; font-size: 14px;")
+            valid_lbl_title.setStyleSheet("font-weight: bold; font-size: 14px; margin-bottom: 5px;")
             layout.addWidget(valid_lbl_title)
             valid_text = QLabel(", ".join(valid_commands))
             valid_text.setWordWrap(True)
-            valid_text.setStyleSheet("font-size: 13px;")
+            valid_text.setStyleSheet("font-size: 13px; color: #444; margin-bottom: 15px;")
             layout.addWidget(valid_text)
+
+            # --- Table header ---
+            header_row = QHBoxLayout()
+            header_row.setContentsMargins(5,5,5,5)
+            header_row.setSpacing(10)
+
+            gesture_hdr = QLabel("Gesture")
+            gesture_hdr.setStyleSheet("font-weight: bold; font-size: 15px; background-color:#e0f7fa; padding:5px; border-radius:4px;")
+            gesture_hdr.setFixedWidth(200)
+            gesture_hdr.setAlignment(Qt.AlignCenter)
+
+            label_hdr = QLabel("Current Command")
+            label_hdr.setStyleSheet("font-weight: bold; font-size: 15px; background-color:#e0f7fa; padding:5px; border-radius:4px;")
+            label_hdr.setFixedWidth(220)
+            label_hdr.setAlignment(Qt.AlignCenter)
+
+            edit_hdr = QLabel("New Command")
+            edit_hdr.setStyleSheet("font-weight: bold; font-size: 15px; background-color:#e0f7fa; padding:5px; border-radius:4px;")
+            edit_hdr.setAlignment(Qt.AlignCenter)
+
+            header_row.addStretch()
+            header_row.addWidget(gesture_hdr)
+            header_row.addWidget(label_hdr)
+            header_row.addWidget(edit_hdr)
+            header_row.addStretch()
+            layout.addLayout(header_row)
+
+            # --- Scroll area ---
             scroll_area = QScrollArea()
             scroll_area.setWidgetResizable(True)
             scroll_widget = QWidget()
             scroll_layout = QVBoxLayout(scroll_widget)
-            scroll_layout.setSpacing(10)
-            scroll_layout.setContentsMargins(10, 10, 10, 10)
+            scroll_layout.setSpacing(8)
+            scroll_layout.setContentsMargins(5,5,5,5)
+
             self.label_inputs = []
-            for old_label in labels:
+
+            for i, old_label in enumerate(labels):
                 row = QHBoxLayout()
+                row.setSpacing(10)
+                row.setContentsMargins(2,2,2,2)
+
+                gesture_lbl = QLabel(gesture_names[i] if i < len(gesture_names) else "unknown")
+                gesture_lbl.setFixedWidth(200)
+                gesture_lbl.setAlignment(Qt.AlignCenter)
+                gesture_lbl.setStyleSheet("font-size: 15px; color: #444; background-color:#f0f0f0; padding:4px; border-radius:4px;")
+
                 lbl = QLabel(str(old_label))
-                lbl.setStyleSheet("font-weight: bold; font-size: 16px;")
+                lbl.setStyleSheet("font-weight: bold; font-size: 16px; background-color:#f0f0f0; padding:4px; border-radius:4px;")
                 lbl.setFixedWidth(220)
                 lbl.setAlignment(Qt.AlignCenter)
+
                 inp = QLineEdit()
                 inp.setPlaceholderText("New name (leave blank to keep)")
-                inp.setStyleSheet("font-size: 16px; padding: 5px; color: black;")
+                inp.setStyleSheet("font-size: 16px; padding: 5px; background-color:#f9f9f9; border:1px solid #ccc; border-radius:4px; color: black;")
+
                 row.addStretch()
+                row.addWidget(gesture_lbl)
                 row.addWidget(lbl)
                 row.addWidget(inp)
                 row.addStretch()
+
                 scroll_layout.addLayout(row)
                 self.label_inputs.append((old_label, inp))
+
             scroll_widget.setLayout(scroll_layout)
             scroll_area.setWidget(scroll_widget)
             layout.addWidget(scroll_area)
+
             btn_save = QPushButton("Save Changes")
             btn_save.setCursor(Qt.PointingHandCursor)
             btn_save.setStyleSheet("""
@@ -384,10 +412,12 @@ class GestureUI(QWidget):
             """)
             btn_save.clicked.connect(lambda: self.save_label_edits(LABEL_PATH, popup, valid_commands))
             layout.addWidget(btn_save, alignment=Qt.AlignCenter)
+
             popup.exec_()
         except Exception as e:
             traceback.print_exc()
             self.show_message_popup("Error", f"Exception:\n{str(e)}")
+
 
     def save_label_edits(self, path, popup, valid_commands):
         try:
