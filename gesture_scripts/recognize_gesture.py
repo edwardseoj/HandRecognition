@@ -6,6 +6,7 @@ import tensorflow as tf
 import platform
 import subprocess
 import ctypes
+import time
 
 # Optional: keyboard handling
 try:
@@ -36,13 +37,34 @@ if not os.path.exists(MODEL_PATH):
 if not os.path.exists(LABEL_PATH):
     raise FileNotFoundError(f"Labels not found at: {LABEL_PATH}")
 
-labels = np.load(LABEL_PATH, allow_pickle=True)
+# =======================
+# SIMPLE LOADING SCREEN
+# =======================
+loading_screen = 255 * np.ones((200, 400, 3), dtype=np.uint8)
+cv2.putText(loading_screen, "Initializing Camera & Model...",
+            (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+cv2.imshow("Loading...", loading_screen)
+cv2.waitKey(1)
 
 # =======================
 # LOAD MODEL
 # =======================
 model = tf.keras.models.load_model(MODEL_PATH)
+labels = np.load(LABEL_PATH, allow_pickle=True)
 print("Model loaded successfully")
+
+# =======================
+# OPEN CAMERA
+# =======================
+cap = cv2.VideoCapture(0)
+# Warmup camera (read a few frames to avoid black first frame)
+for _ in range(20):
+    ret, frame = cap.read()
+    if ret:
+        cv2.imshow("Loading...", frame)
+    cv2.waitKey(50)
+
+cv2.destroyWindow("Loading...")
 
 # =======================
 # WINDOWS VOLUME CONTROL
@@ -110,7 +132,6 @@ def run_spotify_command(gesture):
 # =======================
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
-cap = cv2.VideoCapture(0)
 
 # =======================
 # GESTURE STABILIZATION
