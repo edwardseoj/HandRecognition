@@ -38,13 +38,35 @@ if not os.path.exists(LABEL_PATH):
     raise FileNotFoundError(f"Labels not found at: {LABEL_PATH}")
 
 # =======================
-# SIMPLE LOADING SCREEN
+# IMPROVED LOADING SCREEN
 # =======================
-loading_screen = 255 * np.ones((200, 400, 3), dtype=np.uint8)
+loading_screen = 255 * np.ones((300, 600, 3), dtype=np.uint8)
+
 cv2.putText(loading_screen, "Initializing Camera & Model...",
-            (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            (50, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+
+bar_start = (50, 200)
+bar_end = (550, 230)
+cv2.rectangle(loading_screen, bar_start, bar_end, (0, 0, 0), 2)
+
 cv2.imshow("Loading...", loading_screen)
 cv2.waitKey(1)
+
+steps = 15               
+wait_time = 20           
+bar_color = (0, 51, 153) 
+
+for i in range(steps):
+    fill_width = int((i + 1) / steps * (bar_end[0] - bar_start[0]))
+    cv2.rectangle(loading_screen, bar_start, (bar_start[0] + fill_width, bar_end[1]), bar_color, -1)
+    
+    cv2.imshow("Loading...", loading_screen)
+    cv2.waitKey(wait_time)
+
+cv2.waitKey(100)  
+cv2.destroyWindow("Loading...")
+
+
 
 # =======================
 # LOAD MODEL
