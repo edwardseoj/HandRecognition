@@ -228,6 +228,9 @@ class GestureUI(QWidget):
         <span style='color:#00b2ff;'>I</span>
         <span style='color:#009eff;'>R</span>
         <span style='color:#008aff;'>A</span>
+        <span style='color:#008aff;'> </span>
+        <span style='color:#008aff;'>A</span>
+        <span style='color:#008aff;'>I</span>
         """)
         self.logo_label.setTextFormat(Qt.RichText)
         self.logo_label.setAlignment(Qt.AlignCenter)
@@ -244,9 +247,9 @@ class GestureUI(QWidget):
         self.btn_recognize = QPushButton("Start Recognition")
         self.btn_recognize.setCursor(Qt.PointingHandCursor)
         self.btn_recognize.setMinimumHeight(120)
-        self.btn_reset = QPushButton("Reset")
-        self.btn_reset.setCursor(Qt.PointingHandCursor)
-        self.btn_reset.setMinimumHeight(120)
+        # self.btn_reset = QPushButton("Reset")
+        # self.btn_reset.setCursor(Qt.PointingHandCursor)
+        # self.btn_reset.setMinimumHeight(120)
 
         btn_style = """
             QPushButton {
@@ -262,12 +265,12 @@ class GestureUI(QWidget):
                 color: white;
             }
         """
-        for btn in (self.btn_edit, self.btn_recognize, self.btn_reset):
+        for btn in (self.btn_edit, self.btn_recognize):
             btn.setStyleSheet(btn_style)
 
         button_layout.addWidget(self.btn_edit)
         button_layout.addWidget(self.btn_recognize)
-        button_layout.addWidget(self.btn_reset)
+        # button_layout.addWidget(self.btn_reset)
 
         self.layout.addLayout(button_layout)
 
@@ -278,9 +281,9 @@ class GestureUI(QWidget):
 
         self.btn_edit.clicked.connect(self.show_edit_labels_ui)
         self.btn_recognize.clicked.connect(lambda: self.run_script("recognize_gesture.py", detached=True))
-        self.btn_reset.clicked.connect(lambda: self.run_script_with_popup("train_model.py"))
+        # self.btn_reset.clicked.connect(lambda: self.run_script_with_popup("train_model.py"))
 
-        self.widgets = [self.logo_label, self.btn_edit, self.btn_recognize, self.btn_reset, self.status_label]
+        self.widgets = [self.logo_label, self.btn_edit, self.btn_recognize, self.status_label]
 
     def show_message_popup(self, title, message, parent=None):
         if parent is None:
